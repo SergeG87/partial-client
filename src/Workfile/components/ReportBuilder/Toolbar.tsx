@@ -9,6 +9,7 @@ import { Modal } from '../../../shared/components/Modal';
 export interface ToolbarProps {
   saveReport: any;
   addPage: any;
+  addItem: any;
   workfileId: string;
 }
 
@@ -96,6 +97,7 @@ export class Toolbar extends React.Component<ToolbarProps, ToolbarState> {
             Insert Table
           </Button>
           <Button onClick={this.props.addPage}>New Page</Button>
+          <Button onClick={this.props.addItem}>New Content Block</Button>
         </div>
         {this.props.children}
       </div>
