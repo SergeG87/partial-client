@@ -8,6 +8,8 @@ import WorkfileService from '../../../services/workfiles';
 import { Button } from '../../../shared/components/Button';
 import { ImageList } from '../FileList';
 import { ComponentTab } from '../ComponentTab';
+import { Modal } from '../../../shared/components/Modal';
+import {ImageCropper} from "../ImageCropper";
 
 export interface ImageLibraryProps {
   closeModal: CloseFunction;
@@ -19,6 +21,7 @@ export interface ImageLibraryState {
   sales: IFile[][];
   selectedFile: IFile;
   selectedTract: number;
+  showImageCropModal: boolean;
 }
 
 export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibraryState> {
@@ -26,13 +29,17 @@ export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibrar
     tracts: [[]],
     sales: [[]],
     selectedFile: null,
-    selectedTract: null
+    selectedTract: null,
+    showImageCropModal: false
   };
+
   constructor(props: ImageLibraryProps) {
     super(undefined);
     this.props = props;
     this.insertImage = this.insertImage.bind(this);
     this.selectHandler = this.selectHandler.bind(this);
+    this.closeModal = this.closeModal.bind(this);
+    this.handleCrop = this.handleCrop.bind(this);
     this.getTracts();
     this.getSales();
   }
@@ -41,7 +48,8 @@ export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibrar
     return (
       nextState.tracts !== this.state.tracts ||
       nextState.sales !== this.state.sales ||
-      nextState.selectedFile !== this.state.selectedFile
+      nextState.selectedFile !== this.state.selectedFile ||
+      nextState.showImageCropModal !== this.state.showImageCropModal
     );
   }
 
@@ -85,14 +93,30 @@ export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibrar
 
   insertImage() {
     if (this.state.selectedFile !== null) {
+      this.setState({
+          showImageCropModal: true
+      });
+    }
+  }
+
+  handleCrop(cropBox){
+    console.log(cropBox)
       document.execCommand(
         'insertHTML',
         false,
-        "<figure width='100%'><img src='" + this.state.selectedFile.file_url + "'/></figure>"
+        `<figure><svg width="100%" viewBox="0 0 ${cropBox.width} ${cropBox.height*cropBox.initialHeightToWidth}" preserveAspectRatio="xMinYMin slice">
+                    <image xlink:href="${this.state.selectedFile.file_url}" x="-${cropBox.left*cropBox.containerZoomWidth/100}%" y="-${cropBox.top*cropBox.containerZoomHeight/100}%" width="${cropBox.containerZoomWidth}%"></image>
+            </svg> </figure>`
       );
       this.setState({ selectedFile: null });
+      this.closeModal();
       this.props.closeModal();
-    }
+  }
+
+  closeModal() {
+      this.setState({
+          showImageCropModal: false
+      });
   }
 
   render() {
@@ -131,6 +155,16 @@ export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibrar
     }
     return (
       <div>
+          {
+              this.state.selectedFile && (<Modal
+                  show={this.state.showImageCropModal}
+                  showCancel={true}
+                  showOk={false}
+                  onCancel={this.closeModal}
+              >
+                  <ImageCropper onCrop={this.handleCrop} imageUrl={this.state.selectedFile.file_url} closeModal={this.closeModal} />
+              </Modal>)
+          }
         <div className={styles.mediaLibrary}>
           <ComponentTab components={components} />
         </div>

@@ -1,0 +1,7 @@
+.imageElementWrapper{
+    margin-bottom: 10px;
+}
+
+.imageElementWrapper img{
+    max-width: 100%;
+}
