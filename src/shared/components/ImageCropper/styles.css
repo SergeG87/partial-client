@@ -4,4 +4,5 @@
 
 .imageElementWrapper img{
     max-width: 100%;
+    max-height: calc(90vh - 200px);
 }
