@@ -8,6 +8,7 @@ export const contentEditable: string;
 export const pages: string;
 export const column: string;
 export const page: string;
+export const pageCurrent: string;
 export const ImageLibrary: string;
 export const TableLibrary: string;
 export const contentBox: string;

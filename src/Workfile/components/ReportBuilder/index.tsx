@@ -33,6 +33,7 @@ export interface ReportBuilderState {
   tag: string;
   textAlign: string;
   zoom: number;
+  currentPage: number,
 }
 
 interface Cell {
@@ -67,7 +68,8 @@ export class ReportBuilder extends React.Component<
       figure: false,
       tag: '',
       textAlign: '',
-      zoom: 100
+      zoom: 100,
+      currentPage: 0,
     };
     this.getReports = this.getReports.bind(this);
     this.saveReport = this.saveReport.bind(this);
@@ -163,9 +165,8 @@ export class ReportBuilder extends React.Component<
 
   // adds new Content Block to current page
   addItem() {
+    const pageIndex = this.state.currentPage;
     const pages = this.state.reports[0].report.pages;
-
-    const pageIndex = utils.getCurrentPageIndex() || pages.length - 1;  // by default: last page
     const page = pages[pageIndex];
     const items = page.items;
 
@@ -231,6 +232,11 @@ export class ReportBuilder extends React.Component<
     this.setState({ reports: [{ report: { pages: pages } }] });
   };
 
+  // select page as current
+  setCurrentPage = pageIndex => e => {
+    this.setState({ currentPage: pageIndex });
+  };
+
   render() {
     var report: any = '';
 
@@ -266,7 +272,13 @@ export class ReportBuilder extends React.Component<
         }
 
         pages.push(
-            <div className={styles.page} id={`page_${pageIndex}`} data-id={pageIndex.toString()} key={`page_${pageIndex}`}>
+            <div
+                className={classnames(styles.page, { [styles.pageCurrent]: pageIndex === this.state.currentPage })}
+                id={`page_${pageIndex}`}
+                data-id={pageIndex.toString()}
+                key={`page_${pageIndex}`}
+                onClick={this.setCurrentPage(pageIndex)}
+            >
               <ResponsiveGridLayout
                   className={styles.gridLayout}
                   cols={{lg: 12, md: 12, sm: 12, xs: 12, xxs: 12}}

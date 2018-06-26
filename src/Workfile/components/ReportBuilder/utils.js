@@ -338,14 +338,3 @@ export function insidePage(node) {
   }
   return false;
 }
-
-export function getCurrentPageIndex(node) {
-  var node = this.getSelectedNode();
-  while (node != null) {
-    if (node.className && node.className.indexOf(styles.page) !== -1) {
-      return node.getAttribute('data-id');
-    }
-    node = node.parentNode;
-  }
-  return null;
-}
