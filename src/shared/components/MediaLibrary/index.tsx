@@ -106,7 +106,7 @@ export class ImageLibrary extends React.Component<ImageLibraryProps, ImageLibrar
         false,
         `<figure><svg width="100%" viewBox="0 0 ${cropBox.width} ${cropBox.height*cropBox.initialHeightToWidth}" preserveAspectRatio="xMinYMin slice">
                     <image xlink:href="${this.state.selectedFile.file_url}" x="-${cropBox.left*cropBox.containerZoomWidth/100}%" y="-${cropBox.top*cropBox.containerZoomHeight/100}%" width="${cropBox.containerZoomWidth}%"></image>
-            </svg> </figure>`
+            </svg></figure>`
       );
       this.setState({ selectedFile: null });
       this.closeModal();
