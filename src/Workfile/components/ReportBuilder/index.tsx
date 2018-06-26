@@ -1,7 +1,11 @@
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router-dom';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+require('react-grid-layout/css/styles.css');
+require('font-awesome/css/font-awesome.css');
 var ContentEditable = require('react-contenteditable');
-// import { button } from '../../../shared/components/button';
+const uuidv4 = require('uuid/v4');
+import * as classnames from 'classnames';
 import { Checkbox } from '../../../shared/components/Checkbox';
 import WorkfileService from '../../../services/workfiles';
 import { Toolbar } from './Toolbar';
@@ -9,8 +13,9 @@ import * as utils from './utils';
 
 import * as styles from './styles.css';
 import { PageProps, ReportBuilderAction, Report, CloseFunction } from '../../../types/Report';
-import { Tract as ITract, File as IFile, Sale as ISale } from '../../../types';
 import ReportService from '../../../services/reports';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 export interface ReportBuilderState {
   reports: Report[];
@@ -68,11 +73,12 @@ export class ReportBuilder extends React.Component<
     this.saveReport = this.saveReport.bind(this);
     this.handleChange = this.handleChange.bind(this);
     this.addPage = this.addPage.bind(this);
+    this.addItem = this.addItem.bind(this);
   }
 
   componentWillMount() {
     this.getReports();
-    this.fetchWorkfileAnalysis();
+    // this.fetchWorkfileAnalysis();
   }
 
   componentDidMount() {
@@ -119,15 +125,16 @@ export class ReportBuilder extends React.Component<
   }
 
   async saveReport() {
-    var pages: any = document.querySelectorAll('.' + styles.page);
-    const reports = await ReportService.createReport(this.props.match.params.workfileId, {
-      report: JSON.stringify({ pages: utils.getPagesWithShortcodes(pages) })
+    // Use mock method to prevent overwriting of existing data
+    const reports = ReportService.emulateCreateReport(this.props.match.params.workfileId, {
+      report: JSON.stringify({ pages: this.state.reports[0].report.pages })
     });
   }
 
   async getReports() {
-    const reports = await ReportService.getReports(this.props.match.params.workfileId);
-    this.setState({ reports: [{ report: JSON.parse(reports[0].report) }] });
+    // Use mock method to get static test data
+    const reports = ReportService.emulateGetReports(this.props.match.params.workfileId);
+    this.setState({ reports: [{ report: reports[0].report }] });
   }
 
   handleChange(evt: any) {
@@ -145,10 +152,42 @@ export class ReportBuilder extends React.Component<
   }
 
   addPage() {
-    var pages = this.state.reports[0].report.pages;
-    pages.push(' ');
+    const pages = this.state.reports[0].report.pages;
+
+    const newitem = {id: uuidv4(), x: 0, y: 0, w: 12, h: 5, html: 'New Content Block...<br><br><br><br><br>'};
+    const newPage = {items: [newitem]};
+    pages.push(newPage);
+
     this.setState({ reports: [{ report: { pages: pages } }] });
   }
+
+  // adds new Content Block to current page
+  addItem() {
+    const pages = this.state.reports[0].report.pages;
+
+    const pageIndex = utils.getCurrentPageIndex() || pages.length - 1;  // by default: last page
+    const page = pages[pageIndex];
+    const items = page.items;
+
+    const newitem = {id: uuidv4(), x: 0, y: Infinity, w: 12, h: 5, html: 'New Content Block...<br><br><br><br><br>'};
+    items.push(newitem);
+
+    this.setState({ reports: [{ report: { pages: pages } }] });
+  }
+
+  // removes selected Content Block
+  removeItem = (blockId, pageIndex) => e => {
+    if (confirm('Are you sure?')) {
+      const pages = this.state.reports[0].report.pages;
+
+      const page = pages[pageIndex];
+      const items = page.items;
+
+      page.items = items.filter(item => item.id !== blockId);
+
+      this.setState({reports: [{report: {pages: pages}}]});
+    }
+  };
 
   execCommand(cmd: string) {
     document.execCommand(cmd, false, null);
@@ -162,38 +201,96 @@ export class ReportBuilder extends React.Component<
     this.setState({ zoom: e.target.value });
   };
 
-  render() {
-    var report: any = '';
-    if (
-      this.state.reports.length &&
-      this.state.reports[0].report.pages &&
-      this.state.analysis['data'] !== undefined
-    ) {
-      report = this.state.reports[0].report;
-      var pages = [];
-      for (let i = 0; i < report.pages.length; i++) {
-        var parsedReport = report.pages[i];
-        if (this.state.parseShortcodes) {
-          var parsedReport = utils.parseShortcodes(report.pages[i], this.state.analysis);
-        }
-        pages.push(
-          <ContentEditable
-            key={i}
-            html={parsedReport}
-            disabled={false}
-            onChange={this.handleChange}
-            className={styles.page}
-            id={'page' + i}
-          />
-        );
+  // edit content inside Content Block
+  handleBlockChange = (blockId, pageIndex) => e => {
+    const pages = this.state.reports[0].report.pages;
+    const items = pages[pageIndex].items;
+
+    const editedBlock = items.find(item => item.id === blockId);
+    editedBlock.html = e.target.value;
+    this.setState({ reports: [{ report: { pages: pages } }] });
+  };
+
+  // recalculate position and size of Content Blocks
+  handleLayoutChange = pageIndex => layouts => {
+    const pages = this.state.reports[0].report.pages;
+    const items = pages[pageIndex].items;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const itemLayout = layouts.find(layout => layout.i === item.id);
+
+      if (itemLayout) {
+        item.x = itemLayout.x;
+        item.y = itemLayout.y;
+        item.w = itemLayout.w;
+        item.h = itemLayout.h;
       }
     }
+
+    this.setState({ reports: [{ report: { pages: pages } }] });
+  };
+
+  render() {
+    var report: any = '';
+
+    const pages = [];
+    if (
+        this.state.reports.length &&
+        this.state.reports[0].report.pages
+    ) {
+      report = this.state.reports[0].report;
+      const pagesData = report.pages;
+
+      for (let pageIndex = 0; pageIndex < pagesData.length; pageIndex++) {
+        const page = pagesData[pageIndex];
+        const items = page.items;
+
+        const contentBlocks = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          contentBlocks.push(
+              <div data-grid={{x: item.x, y: item.y, w: item.w, h: item.h, minH: 2}} key={item.id} className={styles.reactGridItem}>
+                <div className={classnames('fa fa-arrows', styles.dragHandle)} />
+                <div className={classnames('fa fa-times-circle', styles.removeItem)} onClick={this.removeItem(item.id, pageIndex)} />
+                <ContentEditable
+                    key={`content_${item.id}`}
+                    id={`content_${item.id}`}
+                    className={styles.contentEditable}
+                    html={item.html}
+                    disabled={false}
+                    onChange={this.handleBlockChange(item.id, pageIndex)}
+                />
+              </div>
+          );
+        }
+
+        pages.push(
+            <div className={styles.page} id={`page_${pageIndex}`} data-id={pageIndex.toString()} key={`page_${pageIndex}`}>
+              <ResponsiveGridLayout
+                  className={styles.gridLayout}
+                  cols={{lg: 12, md: 12, sm: 12, xs: 12, xxs: 12}}
+                  rowHeight={20}
+                  key="grid-layout"
+                  draggableHandle={`.${styles.dragHandle}`}
+                  onLayoutChange={this.handleLayoutChange(pageIndex)}
+              >
+                {contentBlocks}
+              </ResponsiveGridLayout>
+            </div>
+        );
+      }
+    } else {
+      return null;
+    }
+
     return (
       <div className={styles.ReportBuilder}>
         <Toolbar
           workfileId={this.props.match.params.workfileId}
           saveReport={this.saveReport}
           addPage={this.addPage}
+          addItem={this.addItem}
         >
           <div className={styles.buttonGroup}>
             <input type="number" value={this.state.zoom} onChange={this.changeZoom} />
